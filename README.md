@@ -1,4 +1,4 @@
-# RepoMirage Benchmark Toolkit
+# RepoMirage: Measuring Repository Context Reasoning Beyond Issue Resolution in Code Agents
 
 RepoMirage is a benchmark-generation and evaluation toolkit for probing repository-context reasoning in code agents. It builds on SWE-bench-style repository environments and introduces controlled repository-level perturbations that preserve task semantics while increasing the need to trace cross-file structure, runtime targets, proxy imports, and externalized constants.
 
