@@ -14,10 +14,7 @@ This repository is released as an executable benchmark-construction toolkit rath
 ```text
 .
 ├── RepoMirage_Perturb/        # Build perturbed repository images and export metadata
-├── RepoMirage_Extend/         # Generate derived task images and validation scripts
-├── repomirage_metadata/       # Exported per-instance perturbation metadata
-├── repomirage_metadata_stats/ # Task assignment files and generation summaries
-└── repomirage_hf_datasets/    # Optional local Hugging Face-style datasets
+└── RepoMirage_Extend/         # Generate derived task images and validation scripts
 ```
 
 The two main components are:
@@ -109,6 +106,7 @@ If `--only` is omitted, all perturbation modules are enabled.
 --metadata-subdir PATH          In-container metadata path under /testbed.
 --host-metadata-dir PATH        Host directory for exported metadata JSON files.
 --yes-con-output PATH           JSON file listing successfully committed instances.
+--seed N                        Base seed for deterministic perturbations. Default: 42.
 --instance-regex REGEX          Only process matching instance IDs.
 --limit N                       Stop after N processed matching instances.
 --force                         Rebuild even if the target Docker tag already exists.
@@ -265,30 +263,7 @@ The generated Docker images are tagged according to the source and target tags p
 * The toolkit reconstructs perturbed repositories and derived tasks through deterministic scripts.
 * Metadata exported during perturbation is used as the bridge between RepoMirage-Perturb and RepoMirage-Extend.
 * Derived tasks are designed to be automatically checkable by deterministic validation scripts.
-* For repeatable construction, use a fixed `--seed` when generating Extend tasks.
-
-## Anonymity and Asset Policy
-
-This repository is intended for anonymous review. It does not include author names, affiliation information, or venue-specific identifiers. It also does not redistribute modified copies of upstream benchmark repositories or Docker images. Users should prepare the original SWE-bench-compatible resources through their official distribution channels and run the provided scripts to reconstruct the benchmark environments locally.
-
-## Troubleshooting
-
-**Docker permission error**
-
-Make sure Docker is running and that the current user has permission to access the Docker daemon.
-
-**Missing `libcst` or offline dependency errors**
-
-Check that `RepoMirage_Perturb/wheels/` contains an installable `libcst` wheel and any required offline dependencies.
-
-**No instances are processed**
-
-Verify that `--dataset-dir`, `--split`, and `--instance-regex` match the intended SWE-bench-compatible instance IDs.
-
-**Generated image already exists**
-
-Use `--force` in RepoMirage-Perturb or `--overwrite` in RepoMirage-Extend to rebuild existing images.
-
+* For repeatable construction, use a fixed `--seed` (the default seed is 42) when generating Extend tasks.
 **Validator cannot find a patch field**
 
 Ensure that each solution entry contains one of the supported patch fields: `patch`, `agent_patch`, `com
