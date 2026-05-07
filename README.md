@@ -13,8 +13,8 @@ This repository is released as an executable benchmark-construction toolkit rath
 
 ```text
 .
-├── RepoMirage_Perturb/        # Build perturbed repository images and export metadata
-└── RepoMirage_Extend/         # Generate derived task images and validation scripts
+|-- RepoMirage_Perturb/        # Build perturbed repository images and export metadata
+`-- RepoMirage_Extend/         # Generate derived task images and validation scripts
 ```
 
 The two main components are:
@@ -263,8 +263,4 @@ The generated Docker images are tagged according to the source and target tags p
 * The toolkit reconstructs perturbed repositories and derived tasks through deterministic scripts.
 * Metadata exported during perturbation is used as the bridge between RepoMirage-Perturb and RepoMirage-Extend.
 * Derived tasks are designed to be automatically checkable by deterministic validation scripts.
-* For repeatable construction, use a fixed `--seed` (the default seed is 42) when generating Extend tasks.
-**Validator cannot find a patch field**
-
-Ensure that each solution entry contains one of the supported patch fields: `patch`, `agent_patch`, `com
-
+* For repeatable construction, use a fixed `--seed`. The default seed is `42` for both Perturb and Extend. Perturbation seeds are derived from the base seed and `instance_id`, so each instance is deterministic independent of dataset iteration order.
