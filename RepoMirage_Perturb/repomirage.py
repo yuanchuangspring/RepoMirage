@@ -33,6 +33,7 @@ DEFAULT_HOST_METADATA_DIR = "repomirage_metadata"
 DEFAULT_WHEELS_DIR = "wheels"
 DEFAULT_YES_CON_OUTPUT = "yes_con.json"
 DEFAULT_DOCKER_PULL_TIMEOUT = 120
+DEFAULT_SEED = 42
 DEFAULT_GIT_USER_NAME = "RepoMirage"
 DEFAULT_GIT_USER_EMAIL = "repomirage@example.invalid"
 DEFAULT_COMMIT_MESSAGE = "Initialize RepoMirage-transformed repository"
@@ -160,8 +161,10 @@ def build_sample_context(
     py_files: list[str],
     metadata_subdir: str = DEFAULT_METADATA_SUBDIR,
     enabled_perturbations: list[str] | None = None,
+    seed: int = DEFAULT_SEED,
 ) -> dict:
     instance_id = instance["instance_id"]
+    instance_seed = int(hashlib.sha1(f"{seed}:{instance_id}".encode("utf-8")).hexdigest()[:12], 16)
     repo_name = instance.get("repo") or instance.get("repo_name")
     metadata_output_path = f"/testbed/{metadata_subdir.strip('/')}/{instance_id}.json"
     patch_text = instance.get("patch", "")
@@ -179,6 +182,8 @@ def build_sample_context(
         "patch_touched_files": py_files,
         "metadata_output_path": metadata_output_path,
         "enabled_perturbations": normalize_enabled_perturbations(enabled_perturbations),
+        "seed": instance_seed,
+        "base_seed": seed,
     }
 
 # Core image-building logic.
@@ -194,6 +199,7 @@ def augment_instance(
     git_user_name: str = DEFAULT_GIT_USER_NAME,
     git_user_email: str = DEFAULT_GIT_USER_EMAIL,
     commit_message: str = DEFAULT_COMMIT_MESSAGE,
+    seed: int = DEFAULT_SEED,
     force: bool = False,
 ) -> str | None:
     instance_id = instance["instance_id"]
@@ -251,6 +257,7 @@ def augment_instance(
             py_files,
             metadata_subdir=metadata_subdir,
             enabled_perturbations=enabled_perturbations,
+            seed=seed,
         )
         sample_context_path = augment_dir / "sample_context.json"
         sample_context_path.write_text(json.dumps(sample_context, indent=2), encoding="utf-8")
@@ -377,6 +384,7 @@ def main():
     parser.add_argument("--wheels-dir", default=DEFAULT_WHEELS_DIR)
     parser.add_argument("--yes-con-output", default=DEFAULT_YES_CON_OUTPUT)
     parser.add_argument("--docker-pull-timeout", type=int, default=DEFAULT_DOCKER_PULL_TIMEOUT)
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--git-user-name", default=DEFAULT_GIT_USER_NAME)
     parser.add_argument("--git-user-email", default=DEFAULT_GIT_USER_EMAIL)
     parser.add_argument("--commit-message", default=DEFAULT_COMMIT_MESSAGE)
@@ -424,6 +432,7 @@ def main():
             git_user_name=args.git_user_name,
             git_user_email=args.git_user_email,
             commit_message=args.commit_message,
+            seed=args.seed,
             force=args.force,
         )
         if tag:

@@ -1644,6 +1644,9 @@ def main():
     sample_context: Dict[str, Any] = {}
     if sample_context_path and os.path.exists(sample_context_path):
         sample_context = load_json_or_empty(sample_context_path)
+    seed = sample_context.get("seed")
+    if seed is not None:
+        random.seed(int(seed))
     enabled_perturbations = normalize_enabled_perturbations(
         sample_context.get("enabled_perturbations")
     )
