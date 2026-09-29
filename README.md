@@ -18,8 +18,6 @@
   </a>
 </p>
 
----
-
 ## 📰 News
 
 * **[Accepted]** RepoMirage has been accepted by **NeurIPS 2026 ED Track**! 🔥
