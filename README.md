@@ -4,6 +4,9 @@
 </div>
 
 <p align="center">
+  <a href="https://arxiv.org/abs/2605.26177">
+    <img alt="arXiv" src="https://img.shields.io/badge/arXiv-2605.26177-B31B1B.svg">
+  </a>
   <a href="https://neurips.cc/">
     <img alt="NeurIPS 2026 ED Track" src="https://img.shields.io/badge/NeurIPS%202026-ED%20Track-8A2BE2">
   </a>
@@ -20,7 +23,6 @@
 ## 📰 News
 
 * **[Accepted]** RepoMirage has been accepted by **NeurIPS 2026 ED Track**! 🔥
-* **[Paper]** [RepoMirage: Probing Repository Context Reasoning in Code Agents with Perturbations](https://arxiv.org/abs/2605.26177)
 
 ## 👋 Overview
 
