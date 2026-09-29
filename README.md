@@ -29,8 +29,6 @@ RepoMirage is a benchmark-construction toolkit for measuring **repository-contex
 1. **RepoMirage-Perturb** — applies *semantics-preserving repository perturbations* to issue-resolution instances. The issue, the gold patch, and the tests stay untouched; the repository structure becomes harder to reason about.
 2. **RepoMirage-Extend** — turns the structural bottlenecks introduced by perturbation into four explicit, automatically checkable task families.
 
-Everything runs through one entry point, `cli.py`. Intermediate files land in `repomirage_output/` automatically — you never configure their paths.
-
 ## 🚀 Quick Start
 
 > [!NOTE]
