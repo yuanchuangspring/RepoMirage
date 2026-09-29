@@ -63,13 +63,13 @@ mkdir -p RepoMirage_Perturb/wheels
 pip download libcst --no-deps -d RepoMirage_Perturb/wheels
 ```
 
-**4. Base Docker images.** RepoMirage pulls the base image of each instance on demand (e.g. `swebench/sweb.eval.x86_64.django_1776_django-10914:latest` for the SWE-bench example). You can pre-warm them to avoid waiting during the run:
+**4. Base Docker images.** (Optional) RepoMirage pulls the base image of each instance on demand (e.g. `swebench/sweb.eval.x86_64.django_1776_django-10914:latest` for the SWE-bench example). You can pre-warm them to avoid waiting during the run:
 
 ```bash
 docker pull swebench/sweb.eval.x86_64.django_1776_django-10914:latest   # example instance
 ```
 
-**Run the pipeline.** From the repository root:
+**5. Run the pipeline.** From the repository root:
 
 ```bash
 # ① Build perturbed repositories (metadata is exported automatically)
