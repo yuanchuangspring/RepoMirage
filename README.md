@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🪞 RepoMirage</h1>
+  <h1>🔮 RepoMirage</h1>
   <p><em>Measuring Repository Context Reasoning Beyond Issue Resolution.</em></p>
 </div>
 
@@ -20,6 +20,7 @@
 ## 📰 News
 
 * **[Accepted]** RepoMirage has been accepted by **NeurIPS 2026 ED Track**! 🔥
+* **[Paper]** [RepoMirage: Probing Repository Context Reasoning in Code Agents with Perturbations](https://arxiv.org/abs/2605.26177)
 
 ## 👋 Overview
 
@@ -28,33 +29,12 @@ RepoMirage is a benchmark-construction toolkit for measuring **repository-contex
 1. **RepoMirage-Perturb** — applies *semantics-preserving repository perturbations* to issue-resolution instances. The issue, the gold patch, and the tests stay untouched; the repository structure becomes harder to reason about.
 2. **RepoMirage-Extend** — turns the structural bottlenecks introduced by perturbation into four explicit, automatically checkable task families.
 
-```mermaid
-flowchart TB
-    subgraph IN["Inputs"]
-        DS["Issue-resolution dataset<br/>(issues, gold patches, test scripts)"]
-        IMG["Base Docker images<br/>one per instance"]
-    end
-    DS --> P
-    IMG --> P
-    P["① perturb<br/>semantics-preserving repository perturbations"]
-    P --> METADATA["Metadata<br/>repomirage_output/metadata/"]
-    P --> PI["Perturbed images<br/>swebench/...:repomirage"]
-    METADATA --> E["② extend<br/>task assignment + task images"]
-    PI --> E
-    E --> TASKS["Task lists + generation summaries<br/>repomirage_output/tasks/"]
-    TASKS --> X["③ export<br/>Hugging Face-style datasets"]
-    X --> RUN["Run your agent"]
-    RUN --> V["④ validate<br/>check agent patches"]
-```
-
 Everything runs through one entry point, `cli.py`. Intermediate files land in `repomirage_output/` automatically — you never configure their paths.
 
 ## 🚀 Quick Start
 
 > [!NOTE]
 > RepoMirage works with **any SWE-bench-format dataset** — including new datasets you build with [SWE-smith](https://github.com/SWE-bench/SWE-smith). The setup below uses the official SWE-bench (Verified) as the running example.
-
-> If you are starting from zero, this section takes you from a bare machine to a working pipeline.
 
 **0. Docker.** SWE-bench-format images are large — use an `x86_64` machine with at least ~120 GB of free disk. Install Docker and make sure your user can run it (Linux: [post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
 
@@ -203,3 +183,17 @@ The individual scripts still run standalone with the same defaults, and legacy o
 ## ✍️ License & Acknowledgments
 
 MIT License — see [`LICENSE`](LICENSE). RepoMirage builds on SWE-bench (MIT) and mini-swe-agent (MIT); it does not redistribute modified repositories or Docker images. See [`ASSETS.md`](ASSETS.md) for the full license notes.
+
+## 📄 Citation
+
+```bibtex
+@misc{li2026repomirage,
+      title={RepoMirage: Probing Repository Context Reasoning in Code Agents with Perturbations},
+      author={Hanyu Li and Yichi Zhang and Speed Zhu and Hang Su and Jun Zhu and Yinpeng Dong},
+      year={2026},
+      eprint={2605.26177},
+      archivePrefix={arXiv},
+      primaryClass={cs.SE},
+      url={https://arxiv.org/abs/2605.26177},
+}
+```
