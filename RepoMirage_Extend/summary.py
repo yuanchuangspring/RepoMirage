@@ -2,14 +2,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from repomirage_common import (  # noqa: E402
+    CONSTANT_TOP_K,
+    METADATA_DIR,
+    PROXY_TOP_K,
+    TASKS_DIR,
+)
 
-DEFAULT_METADATA_DIR = "repomirage_metadata"
-DEFAULT_OUTPUT_DIR = "repomirage_metadata_stats_0414"
-DEFAULT_PROXY_TOP_K = 144
-DEFAULT_CONSTANT_TOP_K = 144
+DEFAULT_METADATA_DIR = str(METADATA_DIR)
+DEFAULT_OUTPUT_DIR = str(TASKS_DIR)
+DEFAULT_PROXY_TOP_K = PROXY_TOP_K
+DEFAULT_CONSTANT_TOP_K = CONSTANT_TOP_K
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -295,8 +303,18 @@ def summarize_metadata_dir(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Summarize RepoMirage metadata per instance.")
-    parser.add_argument("--metadata-dir", default=DEFAULT_METADATA_DIR)
-    parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument(
+        "--metadata-dir",
+        default=DEFAULT_METADATA_DIR,
+        help="Directory of per-instance metadata exported by RepoMirage-Perturb.",
+    )
+    parser.add_argument(
+        "--tasks-dir",
+        dest="output_dir",
+        default=DEFAULT_OUTPUT_DIR,
+        help="Directory for task assignment lists. Default: repomirage_output/tasks.",
+    )
+    parser.add_argument("--output-dir", dest="output_dir", help=argparse.SUPPRESS)
     parser.add_argument("--instance-ids-file", help="Optional text file with one instance_id per line.")
     parser.add_argument("--proxy-top-k", type=int, default=DEFAULT_PROXY_TOP_K)
     parser.add_argument("--constant-top-k", type=int, default=DEFAULT_CONSTANT_TOP_K)

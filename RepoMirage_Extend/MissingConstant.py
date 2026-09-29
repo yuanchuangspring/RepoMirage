@@ -4,8 +4,21 @@ import argparse
 import json
 import random
 import shlex
+import sys
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from repomirage_common import (  # noqa: E402
+    AUG_TAG,
+    CONSTANT_SAMPLE_SIZE,
+    CONSTANT_TARGET_TAG,
+    GIT_USER_EMAIL,
+    GIT_USER_NAME,
+    METADATA_DIR,
+    PLACEHOLDER,
+    TASKS_DIR,
+)
 
 try:
     import docker
@@ -13,15 +26,15 @@ except ModuleNotFoundError:
     docker = None
 
 
-DEFAULT_INSTANCES_JSON = "repomirage_metadata_stats_0414/constant_top_144.json"
-DEFAULT_METADATA_DIR = "repomirage_metadata"
-DEFAULT_SOURCE_TAG = "repomirage_0408"
-DEFAULT_TARGET_TAG = "repomirage_0408_task4"
-DEFAULT_SUMMARY_PATH = "constant_placeholder_injection_summary.json"
-DEFAULT_PLACEHOLDER = "YOUR CODE HERE"
-DEFAULT_SAMPLE_SIZE = 5
-DEFAULT_GIT_USER_NAME = "RepoMirage"
-DEFAULT_GIT_USER_EMAIL = "repomirage@example.invalid"
+DEFAULT_INSTANCES_JSON = str(TASKS_DIR / "constant_top_144.json")
+DEFAULT_METADATA_DIR = str(METADATA_DIR)
+DEFAULT_SOURCE_TAG = AUG_TAG
+DEFAULT_TARGET_TAG = CONSTANT_TARGET_TAG
+DEFAULT_SUMMARY_PATH = str(TASKS_DIR / "missing_constant_generation_summary.json")
+DEFAULT_PLACEHOLDER = PLACEHOLDER
+DEFAULT_SAMPLE_SIZE = CONSTANT_SAMPLE_SIZE
+DEFAULT_GIT_USER_NAME = GIT_USER_NAME
+DEFAULT_GIT_USER_EMAIL = GIT_USER_EMAIL
 DEFAULT_COMMIT_MESSAGE = "Initialize missing-constant task image"
 REPO_PREFIX = "swebench/sweb.eval.x86_64."
 

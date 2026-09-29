@@ -1,0 +1,10 @@
+# Host-side Python packages required by the RepoMirage toolkit.
+#
+#   pip install -r requirements.txt
+#
+# RepoMirage_Perturb additionally needs a local wheels/ directory inside
+# RepoMirage_Perturb/ containing an installable libcst wheel (the wheel is
+# installed offline inside each generated container).
+docker
+datasets
+tqdm

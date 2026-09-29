@@ -6,6 +6,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from repomirage_common import (  # noqa: E402
+    AUG_TAG,
+    CONSTANT_TARGET_TAG,
+    DATASETS_DIR,
+    DEFAULT_DATASET_DIR,
+    IMAGE_PREFIX,
+    PROXY_TARGET_TAG,
+    RUNTIME_TARGET_TAG,
+    TASKS_DIR,
+)
+
 
 TASKS = {
     "multi_file": {
@@ -49,14 +61,32 @@ def resolve_task_list(stats_dir: Path, pattern: str) -> Path:
 
 def run_command(command: list[str]) -> None:
     print("\n[run] " + " ".join(command), flush=True)
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"\n[error] Step failed with exit code {exc.returncode}: {' '.join(command)}", file=sys.stderr)
+        sys.exit(exc.returncode)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Extract all RepoMirage task lists into local Hugging Face datasets.")
-    parser.add_argument("--input-dataset", required=True, help="Source SWE-bench dataset path or HF dataset name.")
-    parser.add_argument("--stats-dir", required=True, help="Directory produced by RepoMirage_Extend/summary.py.")
-    parser.add_argument("--output-root", default="repomirage_hf_datasets")
+    parser.add_argument(
+        "--input-dataset",
+        default=DEFAULT_DATASET_DIR,
+        help="Source SWE-bench dataset path or HF dataset name. Default: SWE-bench_Verified.",
+    )
+    parser.add_argument(
+        "--tasks-dir",
+        dest="stats_dir",
+        default=str(TASKS_DIR),
+        help="Directory of task assignment lists produced by summary.py. Default: repomirage_output/tasks.",
+    )
+    parser.add_argument("--stats-dir", dest="stats_dir", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--output-root",
+        default=str(DATASETS_DIR),
+        help="Root directory for exported datasets. Default: repomirage_output/datasets.",
+    )
     parser.add_argument("--split", default="test")
     parser.add_argument("--proxy-top-k", type=int, default=144)
     parser.add_argument("--constant-top-k", type=int, default=144)
@@ -67,11 +97,11 @@ def parse_args() -> argparse.Namespace:
         default=list(TASKS),
         help="Task datasets to export.",
     )
-    parser.add_argument("--multi-file-image-tag", default="repomirage")
-    parser.add_argument("--proxy-image-tag", default="repomirage_proxy_chain")
-    parser.add_argument("--runtime-image-tag", default="repomirage_runtime_target")
-    parser.add_argument("--constant-image-tag", default="repomirage_missing_constant")
-    parser.add_argument("--image-prefix", default="swebench/sweb.eval.x86_64.")
+    parser.add_argument("--multi-file-image-tag", default=AUG_TAG)
+    parser.add_argument("--proxy-image-tag", default=PROXY_TARGET_TAG)
+    parser.add_argument("--runtime-image-tag", default=RUNTIME_TARGET_TAG)
+    parser.add_argument("--constant-image-tag", default=CONSTANT_TARGET_TAG)
+    parser.add_argument("--image-prefix", default=IMAGE_PREFIX)
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 

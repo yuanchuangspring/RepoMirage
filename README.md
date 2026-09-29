@@ -15,258 +15,220 @@ The toolkit supports two complementary stages:
 
 This repository is released as an executable benchmark-construction toolkit rather than a static dataset. It does not redistribute modified benchmark repositories or Docker images. Instead, it reconstructs perturbed repositories and derived task environments from existing SWE-bench-compatible Docker images.
 
-## 🧩 Repository Structure
-
-```text
-.
-|-- RepoMirage_Perturb/        # Build perturbed repository images and export metadata
-`-- RepoMirage_Extend/         # Generate derived task images and validation scripts
-```
-
-The two main components are:
-
-* `RepoMirage_Perturb/`: constructs RepoMirage-perturbed SWE-bench Docker images and exports per-instance metadata.
-* `RepoMirage_Extend/`: uses the exported metadata to assign instances to task families and generate task-specific Docker images.
+All commands in this README go through a single entry point, `cli.py`, run from the repository root. Intermediate artifacts are written to a `repomirage_output/` workspace automatically — you never need to configure their paths.
 
 ## 📦 Requirements
 
-Before running the toolkit, make sure the following dependencies are available:
-
 * Docker is running and accessible from the current user.
-* SWE-bench-compatible base Docker images have been prepared.
-* Host Python packages:
+* SWE-bench-compatible base Docker images are prepared (they are pulled automatically when missing).
+* Host Python packages (install with `pip install -r requirements.txt`):
 
   * `docker`
   * `datasets`
   * `tqdm`
-* `RepoMirage_Perturb/` also expects a local `wheels/` directory containing an installable `libcst` wheel and any required offline dependencies.
+
+* `RepoMirage_Perturb/` expects a local `wheels/` directory (inside `RepoMirage_Perturb/`) containing an installable `libcst` wheel and any required offline dependencies.
+* A local SWE-bench dataset directory (e.g. `SWE-bench_Verified/` at the repository root) or a Hugging Face dataset name.
 
 ## 🚀 Quick Start
 
-The full workflow has three steps:
-
-1. Build perturbed repository images with `RepoMirage_Perturb`.
-2. Generate derived task images with `RepoMirage_Extend`.
-3. Optionally export task lists into local Hugging Face-style datasets for agent runners.
+From the repository root, the full workflow is three commands:
 
 ```bash
-# Step 1: generate perturbed repositories and metadata
-cd RepoMirage_Perturb
-python repomirage.py \
-  --dataset-dir SWE-bench_Verified \
-  --split test \
-  --wheels-dir wheels \
-  --aug-tag repomirage \
-  --host-metadata-dir ../repomirage_metadata \
-  --yes-con-output ../yes_con.json
+# Step 1: build perturbed repository images (metadata is exported automatically)
+python cli.py perturb --dataset-dir SWE-bench_Verified
 
-# Step 2: generate task assignments and task-specific images
-cd ../RepoMirage_Extend
-python run_extend_workflow.py \
-  --metadata-dir ../repomirage_metadata \
-  --output-dir ../repomirage_metadata_stats \
-  --source-tag repomirage
+# Step 2: assign tasks and build task-specific images
+python cli.py extend
 
-# Step 3: optionally extract local datasets for mini-swe-agent-style runners
-cd extract_dataset
-python run_extract_datasets.py \
-  --input-dataset ../../SWE-bench_Verified \
-  --stats-dir ../../repomirage_metadata_stats \
-  --output-root ../../repomirage_hf_datasets \
-  --overwrite
+# Step 3 (optional): export task lists as local Hugging Face-style datasets
+python cli.py export
 ```
 
-## Part 1: RepoMirage-Perturb
+That is all. Every intermediate file lands in `repomirage_output/` (see [Output Workspace](#-output-workspace) below) and the generated Docker images are tagged per task family (see [Docker Image Tags](#docker-image-tags)).
 
-`RepoMirage_Perturb/repomirage.py` loads SWE-bench instances, starts the corresponding base Docker images, applies repository-level perturbations inside each container, exports per-instance metadata, removes metadata from the committed image, and writes a list of successfully constructed instances.
+### First-run tips
 
-```bash
-cd RepoMirage_Perturb
-python repomirage.py \
-  --dataset-dir SWE-bench_Verified \
-  --split test \
-  --wheels-dir wheels \
-  --aug-tag repomirage \
-  --host-metadata-dir ../repomirage_metadata \
-  --yes-con-output ../yes_con.json
+* **Dry run without Docker** — step 2 has a `summary`-only mode that writes task assignment lists without building any image:
+
+  ```bash
+  python cli.py extend summary
+  ```
+
+* **Smoke test on a few instances** — add `--limit 3` to step 1 to build only three perturbed images before running the full benchmark.
+* **Work on a subset** — `python cli.py perturb --instance-regex 'django__'` processes only matching instance IDs.
+* **Relocate all artifacts** — set the `REPOMIRAGE_OUT` environment variable (e.g. `REPOMIRAGE_OUT=/mnt/data/repomirage python cli.py perturb ...`).
+
+## 📂 Output Workspace
+
+The toolkit never asks you where to put intermediate files. Everything is written under `repomirage_output/` at the repository root (or under `REPOMIRAGE_OUT` if set):
+
+```text
+repomirage_output/
+├── built_instances.json            # instance IDs whose perturbed images were built
+├── metadata/                       # per-instance perturbation metadata
+│   └── <instance_id>.json
+├── tasks/                          # task assignment lists + image generation summaries
+│   ├── proxy_top_144.json          # Proxy Chain Completion instances
+│   ├── constant_top_144.json       # Missing Constant Recovery instances
+│   ├── touched_files_gt1_<N>.json  # Multi-File Issue Resolution instances
+│   ├── remainder.json              # Runtime Target Identification instances
+│   ├── summary_index.json          # all per-instance summaries
+│   ├── group_summary.json          # group sizes / assignment statistics
+│   └── *_generation_summary.json   # per-step summaries used later for validation
+├── datasets/                       # (optional) exported Hugging Face-style datasets
+│   ├── repomirage_multifile/
+│   ├── repomirage_proxy_chain/
+│   ├── repomirage_runtime_target/
+│   └── repomirage_missing_constant/
+└── reports/                        # validation reports for agent repair patches
 ```
 
-### Perturbation Modules
+| Artifact | Produced by | Purpose |
+|---|---|---|
+| `metadata/*.json` | Step 1 | Describes exactly which perturbations were applied to each instance. It is the bridge between Perturb and Extend. |
+| `built_instances.json` | Step 1 | Lists instances whose images were successfully built; handy for resuming or filtering later steps. |
+| `tasks/*.json` | Step 2 (`summary`) | Assigns each instance to a task family and records how its task image was generated. |
+| `datasets/*/` | Step 3 | Ready-to-load datasets for agent runners, with `docker_image` columns pointing at the generated images. |
+| `reports/*.json` | Validation | Per-solution validation results after an agent run. |
 
-RepoMirage-Perturb currently supports four construction modules:
+### Docker Image Tags
+
+Images built by the toolkit share the SWE-bench prefix `swebench/sweb.eval.x86_64.<instance_id>` and differ only in their tag:
+
+| Tag | Built by | Used for |
+|---|---|---|
+| `repomirage` | Step 1 | Perturbed repository images; Multi-File Issue Resolution |
+| `repomirage_proxy_chain` | Step 2 | Proxy Chain Completion |
+| `repomirage_runtime_target` | Step 2 | Runtime Target Identification |
+| `repomirage_missing_constant` | Step 2 | Missing Constant Recovery |
+
+## 🧩 What Each Stage Does
+
+### RepoMirage-Perturb (Step 1)
+
+Loads SWE-bench instances, starts the corresponding base Docker images, applies repository-level perturbations inside each container, exports per-instance metadata, removes the metadata from the committed image, and records which images were built successfully.
+
+Four construction modules are supported (all enabled by default):
 
 * `proxy_import`: rewrites direct imports through multi-hop proxy files, making dependency paths less locally visible.
 * `in_place_hiding`: masks the original runtime target behind a wrapper package and renamed implementation file.
 * `fake_files`: adds nearby decoy files that are superficially similar to the real runtime file but differ in behaviorally meaningful details.
 * `dynamic_dependency`: externalizes local constant values into JSON resources loaded at runtime.
 
-If `--only` is omitted, all perturbation modules are enabled.
+Use `--only <module> [<module> ...]` to enable only a subset (useful for ablations).
 
-### Useful Options
+### RepoMirage-Extend (Step 2)
 
-```bash
---dataset-dir PATH_OR_DATASET   Dataset path/name passed to datasets.load_dataset.
---split SPLIT                   Dataset split. Default: test.
---aug-tag TAG                   Docker tag for transformed images. Default: repomirage.
---wheels-dir PATH               Local offline wheel directory. Default: wheels.
---metadata-subdir PATH          In-container metadata path under /testbed.
---host-metadata-dir PATH        Host directory for exported metadata JSON files.
---yes-con-output PATH           JSON file listing successfully committed instances.
---seed N                        Base seed for deterministic perturbations. Default: 42.
---instance-regex REGEX          Only process matching instance IDs.
---limit N                       Stop after N processed matching instances.
---force                         Rebuild even if the target Docker tag already exists.
---only NAME [NAME ...]          Enable only selected perturbation modules.
-```
+Reads the metadata exported by Step 1 and assigns instances to four benchmark task families:
 
-## Part 2: RepoMirage-Extend
+* **Multi-File Issue Resolution** — retains issue-resolution instances whose gold patches modify more than one file.
+* **Proxy Chain Completion** — erases intermediate proxy files and requires agents to reconstruct the missing dependency-routing logic.
+* **Runtime Target Identification** — removes the wrapper reference to the real runtime file and requires agents to distinguish the true implementation from decoys.
+* **Missing Constant Recovery** — removes selected JSON keys while preserving values, requiring agents to recover cross-file key-value associations.
 
-`RepoMirage_Extend/summary.py` reads the metadata exported by RepoMirage-Perturb and assigns instances to four benchmark task families.
+`python cli.py extend` runs task assignment and then builds the task images for Proxy Chain Completion, Runtime Target Identification, and Missing Constant Recovery. Use `python cli.py extend summary` to only produce task assignment lists.
 
-### Task Families
+### Dataset Export (Step 3, optional)
 
-* **Multi-File Issue Resolution**: retains issue-resolution instances whose gold patches modify more than one file.
-* **Proxy Chain Completion**: erases intermediate proxy files and requires agents to reconstruct the missing dependency-routing logic.
-* **Runtime Target Identification**: removes the wrapper reference to the real runtime file and requires agents to distinguish the true implementation from decoys.
-* **Missing Constant Recovery**: removes selected JSON keys while preserving values, requiring agents to recover cross-file key-value associations.
-
-The assignment outputs include:
-
-* `touched_files_gt1_<N>.json` for Multi-File Issue Resolution.
-* `proxy_top_<K>.json` for Proxy Chain Completion.
-* `constant_top_<K>.json` for Missing Constant Recovery.
-* `remainder.json` for Runtime Target Identification.
-
-### One-Click Workflow
-
-The one-click workflow runs task assignment and then generates task-specific Docker images for Proxy Chain Completion, Runtime Target Identification, and Missing Constant Recovery.
-
-```bash
-cd RepoMirage_Extend
-python run_extend_workflow.py \
-  --metadata-dir ../repomirage_metadata \
-  --output-dir ../repomirage_metadata_stats \
-  --source-tag repomirage
-```
-
-By default, the workflow runs:
-
-```text
-summary proxy runtime constant
-```
-
-To only produce task assignment files:
-
-```bash
-python run_extend_workflow.py \
-  --metadata-dir ../repomirage_metadata \
-  --output-dir ../repomirage_metadata_stats \
-  --steps summary
-```
-
-### Common Extend Options
-
-```bash
---proxy-top-k N             Number of Proxy Chain instances. Default: 144.
---constant-top-k N          Number of Missing Constant instances. Default: 144.
---source-tag TAG            Docker source tag from Part 1. Default: repomirage.
---proxy-target-tag TAG      Docker target tag for Proxy Chain images.
---runtime-target-tag TAG    Docker target tag for Runtime Target images.
---constant-target-tag TAG   Docker target tag for Missing Constant images.
---seed N                    Random seed for deterministic instance edits.
---overwrite                 Rebuild target images even if the tag already exists.
---git-user-name NAME        Git author name used in generated image commits.
---git-user-email EMAIL      Git author email used in generated image commits.
-```
-
-### Running Generators Directly
-
-Each Extend generator can also be run directly:
-
-```bash
-python summary.py \
-  --metadata-dir ../repomirage_metadata \
-  --output-dir ../repomirage_metadata_stats
-
-python ProxyChain.py \
-  --proxy-top-json ../repomirage_metadata_stats/proxy_top_144.json \
-  --metadata-dir ../repomirage_metadata \
-  --source-tag repomirage
-
-python RuntimeTarget.py \
-  --instances-json ../repomirage_metadata_stats/remainder.json \
-  --metadata-dir ../repomirage_metadata \
-  --source-tag repomirage
-
-python MissingConstant.py \
-  --instances-json ../repomirage_metadata_stats/constant_top_144.json \
-  --metadata-dir ../repomirage_metadata \
-  --source-tag repomirage
-```
-
-## Validation Helpers
-
-`RepoMirage_Extend/` includes validators for agent-submitted repair patches:
-
-```bash
-python validate_ProxyChain.py solutions.json proxy_chain_generation_summary.json \
-  --metadata-dir ../repomirage_metadata
-
-python validate_RuntimeTarget.py solutions.json runtime_target_generation_summary.json
-
-python validate_MissingConstant.py solutions.json missing_constant_generation_summary.json
-```
-
-`solutions.json` can be either:
-
-* a list of solution objects, or
-* an object keyed by `instance_id`.
-
-Each solution entry should include a patch field such as:
-
-* `patch`
-* `agent_patch`
-* `completion_patch`
-* `model_patch`
-
-## Dataset Extraction
-
-`RepoMirage_Extend/extract_dataset/` converts generated task lists into local Hugging Face-style dataset folders for mini-swe-agent-style runners.
-
-```bash
-cd RepoMirage_Extend/extract_dataset
-python run_extract_datasets.py \
-  --input-dataset ../../SWE-bench_Verified \
-  --stats-dir ../../repomirage_metadata_stats \
-  --output-root ../../repomirage_hf_datasets \
-  --overwrite
-```
-
-This writes one dataset per task family and adds the following columns:
+Converts the task lists into local Hugging Face-style dataset folders for mini-swe-agent-style runners. Each exported row is copied from the source SWE-bench dataset and gains three columns:
 
 * `repomirage_task_type`
 * `image_name`
 * `docker_image`
 
-These fields allow downstream runners to select the generated task image for each instance.
+Downstream runners select the generated task image through these fields. Export all families with `python cli.py export`, or a single one with e.g. `python cli.py export proxy_chain`.
 
-## Output Artifacts
+## 📖 Command Reference
 
-After running the full workflow, the main generated artifacts are:
+Every subcommand accepts `--help` (e.g. `python cli.py perturb --help`) and lists all of its options. The tables below cover the ones you are most likely to need.
 
-```text
-repomirage_metadata/          # Per-instance perturbation metadata
-repomirage_metadata_stats/    # Task assignment files and generation summaries
-repomirage_hf_datasets/       # Optional local datasets for agent runners
-Docker images                 # Perturbed and task-specific repository environments
+### `python cli.py perturb`
+
+| Option | Default | Description |
+|---|---|---|
+| `--dataset-dir` | `SWE-bench_Verified` | Dataset path or Hugging Face dataset name. |
+| `--split` | `test` | Dataset split. |
+| `--limit N` | all | Stop after N matching instances (useful for smoke tests). |
+| `--instance-regex RE` | — | Only process matching instance IDs. |
+| `--only NAME [NAME ...]` | all four | Only apply the listed perturbation modules. |
+| `--aug-tag TAG` | `repomirage` | Docker tag for transformed images. |
+| `--force` | off | Rebuild even if the target tag already exists. |
+| `--seed N` | `42` | Base seed; per-instance seeds are derived deterministically. |
+
+### `python cli.py extend [STEPS...]`
+
+`STEPS` may be any of `summary`, `proxy`, `runtime`, `constant` (default: all four). For example, `python cli.py extend summary` produces task lists without touching Docker.
+
+| Option | Default | Description |
+|---|---|---|
+| `--proxy-top-k N` | `144` | Number of Proxy Chain Completion instances. |
+| `--constant-top-k N` | `144` | Number of Missing Constant Recovery instances. |
+| `--source-tag TAG` | `repomirage` | Docker source tag from Step 1. |
+| `--proxy-target-tag` / `--runtime-target-tag` / `--constant-target-tag` | see tags table | Target tags for task images. |
+| `--instance-ids-file FILE` | — | Restrict to instance IDs listed in a text file. |
+| `--overwrite` | off | Rebuild task images even if the tag already exists. |
+| `--seed N` | `42` | Random seed for deterministic instance edits. |
+
+### `python cli.py export [TASKS...]`
+
+`TASKS` may be any of `multi_file`, `proxy_chain`, `runtime_target`, `missing_constant` (default: all four).
+
+| Option | Default | Description |
+|---|---|---|
+| `--input-dataset` | `SWE-bench_Verified` | Source SWE-bench dataset path or HF dataset name. |
+| `--overwrite` | off | Overwrite existing dataset folders. |
+
+### `python cli.py validate TASK SOLUTIONS.json FEEDBACK.json`
+
+Validates agent-submitted repair patches. `TASK` is one of `proxy`, `runtime`, `constant`; `FEEDBACK.json` is the matching generation summary from `repomirage_output/tasks/`:
+
+```bash
+python cli.py validate proxy    solutions.json repomirage_output/tasks/proxy_chain_generation_summary.json
+python cli.py validate runtime  solutions.json repomirage_output/tasks/runtime_target_generation_summary.json
+python cli.py validate constant solutions.json repomirage_output/tasks/missing_constant_generation_summary.json
 ```
 
-The generated Docker images are tagged according to the source and target tags provided in the command-line options.
+`solutions.json` can be either a list of solution objects or an object keyed by `instance_id`. Each solution entry should include a patch field such as `patch`, `agent_patch`, `completion_patch`, or `model_patch`. Reports are written to `repomirage_output/reports/`.
 
-## Reproducibility Notes
+## 🧰 Repository Structure
+
+```text
+.
+|-- cli.py                       # unified entry point (perturb / extend / export / validate)
+|-- repomirage_common.py         # shared defaults (paths, tags, seeds)
+|-- requirements.txt
+|-- RepoMirage_Perturb/          # Step 1: build perturbed repository images and export metadata
+|   |-- repomirage.py
+|   |-- augment_script.py        # in-container perturbation logic
+|   `-- wheels/                  # (user-provided) offline libcst wheel
+`-- RepoMirage_Extend/           # Step 2: task assignment, task images, validation
+    |-- summary.py
+    |-- run_extend_workflow.py
+    |-- ProxyChain.py
+    |-- RuntimeTarget.py
+    |-- MissingConstant.py
+    |-- validate_*.py
+    `-- extract_dataset/         # Step 3: export Hugging Face-style datasets
+```
+
+## ⚙️ Advanced: Running Individual Scripts Directly
+
+The top-level `cli.py` simply forwards to the scripts above, so every script can still be run on its own with the same defaults (for example from `RepoMirage_Extend/`):
+
+```bash
+python summary.py                                  # same defaults as `cli.py extend summary`
+python ProxyChain.py                               # defaults read repomirage_output/ directly
+python run_extend_workflow.py --steps summary proxy
+python validate_ProxyChain.py solutions.json ../repomirage_output/tasks/proxy_chain_generation_summary.json
+```
+
+Artifact paths default into `repomirage_output/` regardless of the directory you run from; every script accepts explicit overrides and `--help`. Legacy option names (e.g. `--host-metadata-dir`, `--yes-con-output`, `--output-dir`) are still accepted as aliases.
+
+## 🔬 Reproducibility Notes
 
 * RepoMirage operates on existing SWE-bench-compatible Docker environments.
 * The toolkit reconstructs perturbed repositories and derived tasks through deterministic scripts.
-* Metadata exported during perturbation is used as the bridge between RepoMirage-Perturb and RepoMirage-Extend.
+* Metadata exported during perturbation is the bridge between RepoMirage-Perturb and RepoMirage-Extend.
 * Derived tasks are designed to be automatically checkable by deterministic validation scripts.
-* For repeatable construction, use a fixed `--seed`. The default seed is `42` for both Perturb and Extend. Perturbation seeds are derived from the base seed and `instance_id`, so each instance is deterministic independent of dataset iteration order.
+* For repeatable construction, use a fixed `--seed`. The default seed is `42` for both stages. Perturbation seeds are derived from the base seed and `instance_id`, so each instance is deterministic independent of dataset iteration order.

@@ -2,6 +2,7 @@ import argparse
 import io
 import os
 import re
+import sys
 import tarfile
 import tempfile
 import threading
@@ -25,17 +26,30 @@ except ModuleNotFoundError:
 
 import json
 
-DATASET_DIR = "SWE-bench_Verified"
-DATASET_SPLIT = "test"
-AUG_TAG = "repomirage"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from repomirage_common import (  # noqa: E402
+    AUG_TAG,
+    BUILT_INSTANCES_PATH,
+    DEFAULT_DATASET_DIR,
+    DEFAULT_SPLIT,
+    GIT_USER_EMAIL,
+    GIT_USER_NAME,
+    METADATA_DIR,
+    SEED,
+)
+
+PERTURB_DIR = Path(__file__).resolve().parent
+
+DATASET_DIR = DEFAULT_DATASET_DIR
+DATASET_SPLIT = DEFAULT_SPLIT
 DEFAULT_METADATA_SUBDIR = ".repomirage/metadata"
-DEFAULT_HOST_METADATA_DIR = "repomirage_metadata"
-DEFAULT_WHEELS_DIR = "wheels"
-DEFAULT_YES_CON_OUTPUT = "yes_con.json"
+DEFAULT_HOST_METADATA_DIR = str(METADATA_DIR)
+DEFAULT_WHEELS_DIR = str(PERTURB_DIR / "wheels")
+DEFAULT_YES_CON_OUTPUT = str(BUILT_INSTANCES_PATH)
 DEFAULT_DOCKER_PULL_TIMEOUT = 120
-DEFAULT_SEED = 42
-DEFAULT_GIT_USER_NAME = "RepoMirage"
-DEFAULT_GIT_USER_EMAIL = "repomirage@example.invalid"
+DEFAULT_SEED = SEED
+DEFAULT_GIT_USER_NAME = GIT_USER_NAME
+DEFAULT_GIT_USER_EMAIL = GIT_USER_EMAIL
 DEFAULT_COMMIT_MESSAGE = "Initialize RepoMirage-transformed repository"
 PERTURBATION_TYPES = (
     "dynamic_dependency",
@@ -271,6 +285,7 @@ def augment_instance(
 
         if not local_wheels_dir.is_dir():
             print(f" [Fatal] Wheels dir not found: {local_wheels_dir}")
+            print("         Put an installable libcst wheel in RepoMirage_Perturb/wheels/ or pass --wheels-dir.")
             return None
 
         shutil.copytree(local_wheels_dir, bundled_wheels_dir)
@@ -380,9 +395,25 @@ def main():
     parser.add_argument("--split", default=DATASET_SPLIT)
     parser.add_argument("--aug-tag", default=AUG_TAG)
     parser.add_argument("--metadata-subdir", default=DEFAULT_METADATA_SUBDIR)
-    parser.add_argument("--host-metadata-dir", default=DEFAULT_HOST_METADATA_DIR)
-    parser.add_argument("--wheels-dir", default=DEFAULT_WHEELS_DIR)
-    parser.add_argument("--yes-con-output", default=DEFAULT_YES_CON_OUTPUT)
+    parser.add_argument(
+        "--metadata-dir",
+        dest="host_metadata_dir",
+        default=DEFAULT_HOST_METADATA_DIR,
+        help="Host directory for exported metadata JSON files. Default: repomirage_output/metadata.",
+    )
+    parser.add_argument("--host-metadata-dir", dest="host_metadata_dir", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--wheels-dir",
+        default=DEFAULT_WHEELS_DIR,
+        help="Local offline wheel directory. Default: RepoMirage_Perturb/wheels.",
+    )
+    parser.add_argument(
+        "--built-instances-output",
+        dest="yes_con_output",
+        default=DEFAULT_YES_CON_OUTPUT,
+        help="JSON file listing instances whose images were built. Default: repomirage_output/built_instances.json.",
+    )
+    parser.add_argument("--yes-con-output", dest="yes_con_output", help=argparse.SUPPRESS)
     parser.add_argument("--docker-pull-timeout", type=int, default=DEFAULT_DOCKER_PULL_TIMEOUT)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--git-user-name", default=DEFAULT_GIT_USER_NAME)
@@ -398,6 +429,15 @@ def main():
         help="Only apply the listed perturbation types for ablation.",
     )
     args = parser.parse_args()
+
+    wheels_dir = Path(args.wheels_dir)
+    if not wheels_dir.is_dir():
+        cwd_wheels = Path.cwd() / "wheels"
+        if cwd_wheels.is_dir():
+            wheels_dir = cwd_wheels
+            args.wheels_dir = str(wheels_dir)
+            print(f"[wheels] Using fallback wheels dir: {wheels_dir}")
+
     get_docker_client()
     if load_dataset is None:
         raise RuntimeError("Missing Python package 'datasets'. Install it first, for example: pip install datasets")
@@ -443,10 +483,14 @@ def main():
         if args.limit is not None and processed >= args.limit:
             break
 
-    with open(args.yes_con_output, "w", encoding="utf-8") as f:
+    yes_con_path = Path(args.yes_con_output)
+    yes_con_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(yes_con_path, "w", encoding="utf-8") as f:
         json.dump(yes_con, f)
 
     print(f"\n=== Done. Total augmented: {len(yes_con)} ===")
+    print(f"Built instance list: {yes_con_path}")
+    print(f"Metadata exported to: {Path(args.host_metadata_dir)}")
 
 if __name__ == "__main__":
     main()

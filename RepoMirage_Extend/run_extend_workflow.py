@@ -6,13 +6,31 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from repomirage_common import (  # noqa: E402
+    AUG_TAG,
+    CONSTANT_SAMPLE_SIZE,
+    CONSTANT_TARGET_TAG,
+    GIT_USER_EMAIL,
+    GIT_USER_NAME,
+    METADATA_DIR,
+    PLACEHOLDER,
+    PROXY_TARGET_TAG,
+    RUNTIME_TARGET_TAG,
+    SEED,
+    TASKS_DIR,
+)
 
 DEFAULT_STEPS = ["summary", "proxy", "runtime", "constant"]
 
 
 def run_command(command: list[str]) -> None:
     print("\n[run] " + " ".join(command), flush=True)
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"\n[error] Step failed with exit code {exc.returncode}: {' '.join(command)}", file=sys.stderr)
+        sys.exit(exc.returncode)
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,8 +40,18 @@ def parse_args() -> argparse.Namespace:
             "then optional task-image generation."
         )
     )
-    parser.add_argument("--metadata-dir", default="repomirage_metadata")
-    parser.add_argument("--output-dir", default="repomirage_metadata_stats")
+    parser.add_argument(
+        "--metadata-dir",
+        default=str(METADATA_DIR),
+        help="Directory of per-instance metadata exported by RepoMirage-Perturb.",
+    )
+    parser.add_argument(
+        "--tasks-dir",
+        dest="output_dir",
+        default=str(TASKS_DIR),
+        help="Directory for task assignment lists and generation summaries. Default: repomirage_output/tasks.",
+    )
+    parser.add_argument("--output-dir", dest="output_dir", help=argparse.SUPPRESS)
     parser.add_argument("--proxy-top-k", type=int, default=144)
     parser.add_argument("--constant-top-k", type=int, default=144)
     parser.add_argument("--instance-ids-file")
@@ -34,17 +62,17 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_STEPS,
         help="Workflow steps to run. Use only 'summary' to produce task lists without Docker image generation.",
     )
-    parser.add_argument("--source-tag", default="repomirage")
-    parser.add_argument("--proxy-target-tag", default="repomirage_proxy_chain")
-    parser.add_argument("--runtime-target-tag", default="repomirage_runtime_target")
-    parser.add_argument("--constant-target-tag", default="repomirage_missing_constant")
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--placeholder", default="YOUR CODE HERE")
-    parser.add_argument("--constant-sample-size", type=int, default=5)
+    parser.add_argument("--source-tag", default=AUG_TAG)
+    parser.add_argument("--proxy-target-tag", default=PROXY_TARGET_TAG)
+    parser.add_argument("--runtime-target-tag", default=RUNTIME_TARGET_TAG)
+    parser.add_argument("--constant-target-tag", default=CONSTANT_TARGET_TAG)
+    parser.add_argument("--seed", type=int, default=SEED)
+    parser.add_argument("--placeholder", default=PLACEHOLDER)
+    parser.add_argument("--constant-sample-size", type=int, default=CONSTANT_SAMPLE_SIZE)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--stop-on-error", action="store_true")
-    parser.add_argument("--git-user-name", default="RepoMirage")
-    parser.add_argument("--git-user-email", default="repomirage@example.invalid")
+    parser.add_argument("--git-user-name", default=GIT_USER_NAME)
+    parser.add_argument("--git-user-email", default=GIT_USER_EMAIL)
     return parser.parse_args()
 
 
@@ -59,7 +87,7 @@ def main() -> None:
             str(here / "summary.py"),
             "--metadata-dir",
             args.metadata_dir,
-            "--output-dir",
+            "--tasks-dir",
             str(output_dir),
             "--proxy-top-k",
             str(args.proxy_top_k),

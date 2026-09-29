@@ -4,8 +4,19 @@ import argparse
 import json
 import random
 import shlex
+import sys
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from repomirage_common import (  # noqa: E402
+    AUG_TAG,
+    GIT_USER_EMAIL,
+    GIT_USER_NAME,
+    METADATA_DIR,
+    PROXY_TARGET_TAG,
+    TASKS_DIR,
+)
 
 try:
     import docker
@@ -13,13 +24,13 @@ except ModuleNotFoundError:
     docker = None
 
 
-DEFAULT_PROXY_TOP_JSON = "repomirage_metadata_stats_0414/proxy_top_144.json"
-DEFAULT_METADATA_DIR = "repomirage_metadata"
-DEFAULT_SOURCE_TAG = "repomirage_0408"
-DEFAULT_TARGET_TAG = "repomirage_0408_task2"
-DEFAULT_SUMMARY_PATH = "middle_layer_injection_summary.json"
-DEFAULT_GIT_USER_NAME = "RepoMirage"
-DEFAULT_GIT_USER_EMAIL = "repomirage@example.invalid"
+DEFAULT_PROXY_TOP_JSON = str(TASKS_DIR / "proxy_top_144.json")
+DEFAULT_METADATA_DIR = str(METADATA_DIR)
+DEFAULT_SOURCE_TAG = AUG_TAG
+DEFAULT_TARGET_TAG = PROXY_TARGET_TAG
+DEFAULT_SUMMARY_PATH = str(TASKS_DIR / "proxy_chain_generation_summary.json")
+DEFAULT_GIT_USER_NAME = GIT_USER_NAME
+DEFAULT_GIT_USER_EMAIL = GIT_USER_EMAIL
 DEFAULT_COMMIT_MESSAGE = "Initialize proxy-chain task image"
 REPO_PREFIX = "swebench/sweb.eval.x86_64."
 

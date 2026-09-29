@@ -5,9 +5,21 @@ import hashlib
 import json
 import random
 import shlex
+import sys
 import traceback
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from repomirage_common import (  # noqa: E402
+    AUG_TAG,
+    GIT_USER_EMAIL,
+    GIT_USER_NAME,
+    METADATA_DIR,
+    PLACEHOLDER,
+    RUNTIME_TARGET_TAG,
+    TASKS_DIR,
+)
 
 try:
     import docker
@@ -15,14 +27,14 @@ except ModuleNotFoundError:
     docker = None
 
 
-DEFAULT_INSTANCES_JSON = "repomirage_metadata_stats_0414/remainder.json"
-DEFAULT_METADATA_DIR = "repomirage_metadata"
-DEFAULT_SOURCE_TAG = "repomirage_0408"
-DEFAULT_TARGET_TAG = "repomirage_0408_task3"
-DEFAULT_SUMMARY_PATH = "wrapper_placeholder_variant_injection_summary_compact.json"
-DEFAULT_PLACEHOLDER = "YOUR CODE HERE"
-DEFAULT_GIT_USER_NAME = "RepoMirage"
-DEFAULT_GIT_USER_EMAIL = "repomirage@example.invalid"
+DEFAULT_INSTANCES_JSON = str(TASKS_DIR / "remainder.json")
+DEFAULT_METADATA_DIR = str(METADATA_DIR)
+DEFAULT_SOURCE_TAG = AUG_TAG
+DEFAULT_TARGET_TAG = RUNTIME_TARGET_TAG
+DEFAULT_SUMMARY_PATH = str(TASKS_DIR / "runtime_target_generation_summary.json")
+DEFAULT_PLACEHOLDER = PLACEHOLDER
+DEFAULT_GIT_USER_NAME = GIT_USER_NAME
+DEFAULT_GIT_USER_EMAIL = GIT_USER_EMAIL
 DEFAULT_COMMIT_MESSAGE = "Initialize runtime-target task image"
 REPO_PREFIX = "swebench/sweb.eval.x86_64."
 

@@ -1,0 +1,6 @@
+# Intermediate artifacts produced by the toolkit
+repomirage_output/
+
+# Python
+__pycache__/
+*.py[cod]
