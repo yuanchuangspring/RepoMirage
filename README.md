@@ -1,5 +1,11 @@
 # RepoMirage: Measuring Repository Context Reasoning Beyond Issue Resolution in Code Agents
 
+## 📰 News
+
+🔥 RepoMirage has been accepted by NeurIPS 2026 ED Track!
+
+---
+
 RepoMirage is a benchmark-generation and evaluation toolkit for probing repository-context reasoning in code agents. It builds on SWE-bench-style repository environments and introduces controlled repository-level perturbations that preserve task semantics while increasing the need to trace cross-file structure, runtime targets, proxy imports, and externalized constants.
 
 The toolkit supports two complementary stages:
@@ -9,7 +15,7 @@ The toolkit supports two complementary stages:
 
 This repository is released as an executable benchmark-construction toolkit rather than a static dataset. It does not redistribute modified benchmark repositories or Docker images. Instead, it reconstructs perturbed repositories and derived task environments from existing SWE-bench-compatible Docker images.
 
-## Repository Structure
+## 🧩 Repository Structure
 
 ```text
 .
@@ -22,7 +28,7 @@ The two main components are:
 * `RepoMirage_Perturb/`: constructs RepoMirage-perturbed SWE-bench Docker images and exports per-instance metadata.
 * `RepoMirage_Extend/`: uses the exported metadata to assign instances to task families and generate task-specific Docker images.
 
-## Requirements
+## 📦 Requirements
 
 Before running the toolkit, make sure the following dependencies are available:
 
@@ -35,7 +41,7 @@ Before running the toolkit, make sure the following dependencies are available:
   * `tqdm`
 * `RepoMirage_Perturb/` also expects a local `wheels/` directory containing an installable `libcst` wheel and any required offline dependencies.
 
-## Quick Start
+## 🚀 Quick Start
 
 The full workflow has three steps:
 
