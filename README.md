@@ -1,6 +1,6 @@
 <div align="center">
   <h1>🪞 RepoMirage</h1>
-  <p><em>Measuring Repository Context Reasoning Beyond Issue Resolution — built on top of SWE-bench.</em></p>
+  <p><em>Measuring Repository Context Reasoning Beyond Issue Resolution.</em></p>
 </div>
 
 <p align="center">
@@ -23,39 +23,40 @@
 
 ## 👋 Overview
 
-[SWE-bench](https://github.com/SWE-bench/SWE-bench) is the standard benchmark for real-world GitHub issue resolution: given a **codebase** and an **issue**, a model generates a **patch** that resolves the problem. Every SWE-bench instance ships with a repository snapshot, a test script, and an evaluation Docker image (`swebench/sweb.eval.x86_64.<instance_id>:latest`).
+RepoMirage is a benchmark-construction toolkit for measuring **repository-context reasoning** in code agents: the ability to trace cross-file structure, hidden runtime targets, proxy imports, and externalized constants. It has two complementary stages:
 
-**RepoMirage starts exactly there.** It takes SWE-bench instances and applies *semantics-preserving repository perturbations* — the issue, the gold patch, and the tests stay untouched, but the repository structure becomes harder to reason about. This yields:
-
-1. **Perturbed repositories** — the original issue-resolution task now demands deeper repository-context reasoning.
-2. **Four derived task families** — the structural bottlenecks introduced by perturbation are turned into explicit, automatically checkable tasks (proxy chains, hidden runtime targets, decoy files, externalized constants).
+1. **RepoMirage-Perturb** — applies *semantics-preserving repository perturbations* to issue-resolution instances. The issue, the gold patch, and the tests stay untouched; the repository structure becomes harder to reason about.
+2. **RepoMirage-Extend** — turns the structural bottlenecks introduced by perturbation into four explicit, automatically checkable task families.
 
 ```mermaid
 flowchart TB
-    subgraph SWE["🐣 Start from SWE-bench"]
-        DS["Dataset (issues, gold patches, test scripts)"]
-        IMG["Base Docker images: swebench/sweb.eval.x86_64.*"]
+    subgraph IN["Inputs"]
+        DS["Issue-resolution dataset<br/>(issues, gold patches, test scripts)"]
+        IMG["Base Docker images<br/>one per instance"]
     end
     DS --> P
     IMG --> P
-    P["① perturb — semantics-preserving repository perturbations"]
-    P --> METADATA["Metadata: repomirage_output/metadata/"]
-    P --> PI["Perturbed images: swebench/...:repomirage"]
-    METADATA --> E["② extend — task assignment + task images"]
+    P["① perturb<br/>semantics-preserving repository perturbations"]
+    P --> METADATA["Metadata<br/>repomirage_output/metadata/"]
+    P --> PI["Perturbed images<br/>swebench/...:repomirage"]
+    METADATA --> E["② extend<br/>task assignment + task images"]
     PI --> E
-    E --> TASKS["Task lists + generation summaries: repomirage_output/tasks/"]
-    TASKS --> X["③ export — Hugging Face-style datasets"]
+    E --> TASKS["Task lists + generation summaries<br/>repomirage_output/tasks/"]
+    TASKS --> X["③ export<br/>Hugging Face-style datasets"]
     X --> RUN["Run your agent"]
-    RUN --> V["④ validate — check agent patches"]
+    RUN --> V["④ validate<br/>check agent patches"]
 ```
 
 Everything runs through one entry point, `cli.py`. Intermediate files land in `repomirage_output/` automatically — you never configure their paths.
 
-## 🚀 Set Up
+## 🚀 Quick Start
+
+> [!NOTE]
+> RepoMirage works with **any SWE-bench-format dataset** — including new datasets you build with [SWE-smith](https://github.com/SWE-bench/SWE-smith). The setup below uses the official SWE-bench (Verified) as the running example.
 
 > If you are starting from zero, this section takes you from a bare machine to a working pipeline.
 
-**0. Docker.** SWE-bench images are large — use an `x86_64` machine with at least ~120 GB of free disk. Install Docker and make sure your user can run it (Linux: [post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
+**0. Docker.** SWE-bench-format images are large — use an `x86_64` machine with at least ~120 GB of free disk. Install Docker and make sure your user can run it (Linux: [post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
 
 **1. Clone this repository and install the host packages.**
 
@@ -65,7 +66,7 @@ cd RepoMirage
 pip install -r requirements.txt
 ```
 
-**2. Get a SWE-bench dataset.** Any SWE-bench-compatible dataset works (Verified, Lite, full, or your own local copy). The default is `./SWE-bench_Verified` at the repository root:
+**2. Get a dataset.** As the running example, download SWE-bench (Verified) into the default location, `./SWE-bench_Verified`:
 
 ```python
 from datasets import load_dataset
@@ -73,7 +74,7 @@ load_dataset("SWE-bench/SWE-bench_Verified", split="test").save_to_disk("SWE-ben
 ```
 
 > [!NOTE]
-> If you already have SWE-bench elsewhere, just pass `--dataset-dir /path/to/it` (a local directory or a Hugging Face dataset id).
+> Any SWE-bench-format dataset works the same way — Verified, Lite, the full set, or a SWE-smith-generated dataset. Point `--dataset-dir` at it (a local directory or a Hugging Face dataset id).
 
 **3. Prepare the offline `libcst` wheel.** The perturbation runs inside containers with no network access, so a `libcst` wheel must be bundled locally:
 
@@ -82,21 +83,13 @@ mkdir -p RepoMirage_Perturb/wheels
 pip download libcst --no-deps -d RepoMirage_Perturb/wheels
 ```
 
-**4. Base Docker images.** RepoMirage pulls the official SWE-bench evaluation images on demand, e.g. `swebench/sweb.eval.x86_64.django_1776_django-10914:latest`. You can pre-warm them to avoid waiting during the run:
+**4. Base Docker images.** RepoMirage pulls the base image of each instance on demand (e.g. `swebench/sweb.eval.x86_64.django_1776_django-10914:latest` for the SWE-bench example). You can pre-warm them to avoid waiting during the run:
 
 ```bash
 docker pull swebench/sweb.eval.x86_64.django_1776_django-10914:latest   # example instance
 ```
 
-**Test your installation** by building a single perturbed image:
-
-```bash
-python cli.py perturb --limit 1
-```
-
-If it succeeds you get the image `swebench/sweb.eval.x86_64.<instance_id>:repomirage` plus `repomirage_output/metadata/<instance_id>.json`.
-
-## 💽 Usage
+**Run the pipeline.** From the repository root:
 
 ```bash
 # ① Build perturbed repositories (metadata is exported automatically)
@@ -109,17 +102,26 @@ python cli.py extend
 python cli.py export
 ```
 
-* **① perturb** — for each instance, starts its SWE-bench base image, applies the perturbation modules to the files touched by the gold patch, exports metadata, removes it from the image, rebuilds the git history, and commits the tag `repomirage`.
-* **② extend** — `summary` first groups instances into four task families from the metadata; then `proxy` / `runtime` / `constant` build the task-specific images.
-* **③ export** — writes one Hugging Face-style dataset per task family, each row carrying `repomirage_task_type`, `image_name`, and `docker_image` columns so your runner picks the right image.
+**Test your installation** by building a single perturbed image first:
+
+```bash
+python cli.py perturb --limit 1
+```
+
+If it succeeds you get the image `swebench/sweb.eval.x86_64.<instance_id>:repomirage` plus `repomirage_output/metadata/<instance_id>.json`.
 
 > [!TIP]
 > * **Smoke test**: `python cli.py perturb --limit 3`
 > * **No-Docker dry run**: `python cli.py extend summary` only writes the task lists
 > * **Work on a subset**: `python cli.py perturb --instance-regex 'django__'`
 > * **Move all artifacts**: set the `REPOMIRAGE_OUT` environment variable
+> * Every subcommand has `--help`; see [Common Options](#-common-options)
 
-Every subcommand has `--help`. See [Common Options](#-common-options) for the flags you'll actually use.
+## 💽 Usage
+
+* **① perturb** — for each instance, starts its base image, applies the perturbation modules to the files touched by the gold patch, exports metadata, removes it from the image, rebuilds the git history, and commits the tag `repomirage`.
+* **② extend** — `summary` first groups instances into four task families from the metadata; then `proxy` / `runtime` / `constant` build the task-specific images.
+* **③ export** — writes one Hugging Face-style dataset per task family, each row carrying `repomirage_task_type`, `image_name`, and `docker_image` columns so your runner picks the right image.
 
 ## 📂 What Gets Generated
 
@@ -137,7 +139,7 @@ repomirage_output/
 └── reports/                          # validation reports
 ```
 
-All generated images keep the SWE-bench prefix `swebench/sweb.eval.x86_64.<instance_id>` and differ only by tag:
+All generated images keep the instance's image prefix and differ only by tag:
 
 | Tag | Built by | Used for |
 |---|---|---|
