@@ -215,7 +215,9 @@ def main() -> None:
         "unqualified_instance_ids": unqualified,
         "results": results,
     }
-    Path(args.report_path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    report_path = Path(args.report_path)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Saved report to: {args.report_path}")
 
 

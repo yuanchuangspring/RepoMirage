@@ -120,7 +120,8 @@ def dataset_info_to_dict(info: Any) -> dict[str, Any]:
 def build_dataset(args: argparse.Namespace) -> None:
     instance_ids = load_instance_ids(args.task_list_json)
     if not instance_ids:
-        raise ValueError(f"No instance IDs found in {args.task_list_json}")
+        print(f"[skip] Task list {args.task_list_json} contains no instances; nothing to export.")
+        return
 
     id_rank = {instance_id: rank for rank, instance_id in enumerate(instance_ids)}
     id_set = set(instance_ids)
@@ -130,7 +131,8 @@ def build_dataset(args: argparse.Namespace) -> None:
 
     filtered = source_dataset.filter(lambda row: row.get("instance_id") in id_set)
     if len(filtered) == 0:
-        raise RuntimeError("Filtered dataset is empty.")
+        print(f"[skip] No instances matched in the source dataset for task '{args.task_type}'; nothing to export.")
+        return
 
     filtered = filtered.map(lambda row: {"_repomirage_rank": id_rank[row["instance_id"]]})
     filtered = filtered.sort("_repomirage_rank")

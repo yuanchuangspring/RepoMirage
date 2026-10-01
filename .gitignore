@@ -1,6 +1,15 @@
 # Intermediate artifacts produced by the toolkit
 repomirage_output/
 
+# Local datasets and bundled wheels prepared by the user
+SWE-bench_Verified/
+RepoMirage_Perturb/wheels/
+
+# Hugging Face cache
+.hf_cache/
+
 # Python
 __pycache__/
 *.py[cod]
+.venv/
+.uvcache/

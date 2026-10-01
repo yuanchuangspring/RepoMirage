@@ -1,6 +1,5 @@
 import argparse
 import io
-import os
 import re
 import sys
 import tarfile
@@ -16,9 +15,10 @@ except ModuleNotFoundError:
 from augment_script import AUGMENT_SCRIPT
 from pathlib import Path
 try:
-    from datasets import load_dataset
+    from datasets import load_dataset, load_from_disk
 except ModuleNotFoundError:
     load_dataset = None
+    load_from_disk = None
 try:
     from tqdm import tqdm
 except ModuleNotFoundError:
@@ -300,6 +300,12 @@ def augment_instance(
         if res.exit_code != 0:
             print(f" [!] Failed to install libcst from local wheels:\n{res.output.decode(errors='ignore')}")
             print(" [Fatal] Could not install libcst inside container. Aborting.")
+            print(
+                "         The wheels dir must contain libcst AND its dependencies "
+                "(pyyaml, typing_extensions) for the container's Python version, e.g.:\n"
+                "         pip download libcst --only-binary=:all: --platform manylinux2014_x86_64 "
+                "--python-version <ver> -d RepoMirage_Perturb/wheels"
+            )
             return None
 
         cmd = "python /tmp/augment/augment_in_container.py /tmp/augment/files.txt /tmp/augment/sample_context.json"
@@ -389,6 +395,20 @@ def augment_instance(
                 pass
             # print(" [x] Container cleaned")
 
+
+def load_source_dataset(dataset_dir: str, split: str):
+    """Load a SWE-bench-format dataset from a local directory or a HF dataset id."""
+    if load_dataset is None:
+        raise RuntimeError("Missing Python package 'datasets'. Install it first, for example: pip install datasets")
+    path = Path(dataset_dir)
+    if path.is_dir():
+        try:
+            return load_from_disk(str(path))
+        except Exception:
+            pass
+    return load_dataset(dataset_dir, split=split)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build RepoMirage-transformed SWE-bench Docker images.")
     parser.add_argument("--dataset-dir", default=DATASET_DIR)
@@ -439,14 +459,12 @@ def main():
             print(f"[wheels] Using fallback wheels dir: {wheels_dir}")
 
     get_docker_client()
-    if load_dataset is None:
-        raise RuntimeError("Missing Python package 'datasets'. Install it first, for example: pip install datasets")
 
-    if not os.path.exists(args.dataset_dir):
-        print(f"Dataset dir {args.dataset_dir} not found.")
-        return
-
-    ds = load_dataset(str(args.dataset_dir), split=args.split)
+    try:
+        ds = load_source_dataset(args.dataset_dir, args.split)
+    except Exception as exc:
+        print(f"Failed to load dataset '{args.dataset_dir}': {exc}")
+        return 2
     print(f"Loaded {len(ds)} instances.")
 
     enabled_perturbations = normalize_enabled_perturbations(args.only)
@@ -491,6 +509,11 @@ def main():
     print(f"\n=== Done. Total augmented: {len(yes_con)} ===")
     print(f"Built instance list: {yes_con_path}")
     print(f"Metadata exported to: {Path(args.host_metadata_dir)}")
+    if success_count == 0:
+        print("[warn] No images were built or reused. Check the messages above.")
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
