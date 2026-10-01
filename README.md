@@ -2,6 +2,10 @@
   <img src="assets/repomirage-band.png" alt="RepoMirage" width="80%">
 </p>
 
+<div align="center">
+  <h1>🔮 RepoMirage</h1>
+</div>
+
 <p align="center">
   <a href="https://arxiv.org/abs/2605.26177">
     <img alt="arXiv" src="https://img.shields.io/badge/arXiv-2605.26177-B31B1B.svg">
