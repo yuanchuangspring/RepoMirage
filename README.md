@@ -89,13 +89,6 @@ python cli.py extend
 python cli.py export
 ```
 
-* **Test your installation first** — build a single perturbed image:
-
-  ```bash
-  python cli.py perturb --limit 1
-  ```
-
-  If it succeeds you get the image `swebench/sweb.eval.x86_64.<instance_id>:repomirage` plus `repomirage_output/metadata/<instance_id>.json`.
 * Pre-warm base images to avoid waiting during the run (optional):
 
   ```bash
