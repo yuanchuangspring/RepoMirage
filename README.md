@@ -1,11 +1,6 @@
 <p align="center">
-  <img src="assets/repomirage-band.png" alt="RepoMirage" width="100%">
+  <img src="assets/repomirage-band.png" alt="RepoMirage" width="80%">
 </p>
-
-<div align="center">
-  <h1>🔮 RepoMirage</h1>
-  <p><em>Measuring Repository Context Reasoning Beyond Issue Resolution.</em></p>
-</div>
 
 <p align="center">
   <a href="https://arxiv.org/abs/2605.26177">
