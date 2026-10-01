@@ -44,7 +44,7 @@ python run_extract_datasets.py \
   --overwrite
 ```
 
-You can also export one task family with `build_hf_dataset.py` directly:
+You can also export one task family with `build_hf_dataset.py` directly (the number in the task-list filename is the K you chose for `extend`):
 
 ```bash
 python build_hf_dataset.py \

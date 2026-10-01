@@ -29,14 +29,19 @@ RepoMirage is a benchmark-construction toolkit for measuring **repository-contex
 1. **RepoMirage-Perturb** — applies *semantics-preserving repository perturbations* to issue-resolution instances. The issue, the gold patch, and the tests stay untouched; the repository structure becomes harder to reason about.
 2. **RepoMirage-Extend** — turns the structural bottlenecks introduced by perturbation into four explicit, automatically checkable task families.
 
+Everything runs through one entry point, `cli.py`. Intermediate files land in `repomirage_output/` automatically — you never configure their paths.
+
 ## 🚀 Quick Start
 
-> [!NOTE]
-> RepoMirage works with **any SWE-bench-format dataset** — including new datasets you build with [SWE-smith](https://github.com/SWE-bench/SWE-smith). The setup below uses the official SWE-bench (Verified) as the running example.
+This tutorial goes from zero to a validated agent run in one straight line. It uses the official SWE-bench (Verified) as the running example; any SWE-bench-format dataset works the same way (Verified, Lite, the full set, or a dataset built with [SWE-smith](https://github.com/SWE-bench/SWE-smith)).
 
-**0. Docker.** SWE-bench-format images are large — use an `x86_64` machine with at least ~120 GB of free disk. Install Docker and make sure your user can run it (Linux: [post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
+### 0. Prerequisites
 
-**1. Clone this repository and install the host packages.**
+* An `x86_64` machine with at least ~120 GB of free disk — SWE-bench-format images are large.
+* Docker, with your user allowed to run it ([Linux post-install steps](https://docs.docker.com/engine/install/linux-postinstall/)).
+* Python 3.10+.
+
+### 1. Install
 
 ```bash
 git clone https://github.com/yuanchuangspring/RepoMirage.git
@@ -44,7 +49,9 @@ cd RepoMirage
 pip install -r requirements.txt
 ```
 
-**2. Get a dataset.** As the running example, download SWE-bench (Verified) into the default location, `./SWE-bench_Verified`:
+### 2. Get a dataset
+
+Download SWE-bench (Verified) into the default location, `./SWE-bench_Verified`:
 
 ```python
 from datasets import load_dataset
@@ -52,22 +59,26 @@ load_dataset("SWE-bench/SWE-bench_Verified", split="test").save_to_disk("SWE-ben
 ```
 
 > [!NOTE]
-> Any SWE-bench-format dataset works the same way — Verified, Lite, the full set, or a SWE-smith-generated dataset. Point `--dataset-dir` at it (a local directory or a Hugging Face dataset id).
+> For any other dataset, point `--dataset-dir` at it (a local directory or a Hugging Face dataset id).
 
-**3. Prepare the offline `libcst` wheel.** The perturbation runs inside containers with no network access, so a `libcst` wheel must be bundled locally:
+### 3. Bundle the offline `libcst` wheels
+
+The perturbation runs inside containers with no network access, so `libcst` — **together with its dependencies** — must be bundled locally. The containers often run a different Python version than your host, so download wheels for every version the images may use (3.8–3.12 here):
 
 ```bash
 mkdir -p RepoMirage_Perturb/wheels
-pip download libcst --no-deps -d RepoMirage_Perturb/wheels
+for v in 38 39 310 311 312; do
+  pip download libcst --only-binary=:all: \
+    --platform manylinux2014_x86_64 --python-version $v \
+    -d RepoMirage_Perturb/wheels
+done
 ```
 
-**4. Base Docker images.** (Optional) RepoMirage pulls the base image of each instance on demand (e.g. `swebench/sweb.eval.x86_64.django_1776_django-10914:latest` for the SWE-bench example). You can pre-warm them to avoid waiting during the run:
+`manylinux2014` wheels run on glibc ≥ 2.17, which covers all SWE-bench images. (A plain `pip download libcst -d RepoMirage_Perturb/wheels` also works, but only for your host's Python version.)
 
-```bash
-docker pull swebench/sweb.eval.x86_64.django_1776_django-10914:latest   # example instance
-```
+### 4. Run the pipeline
 
-**5. Run the pipeline.** From the repository root:
+From the repository root:
 
 ```bash
 # ① Build perturbed repositories (metadata is exported automatically)
@@ -76,30 +87,59 @@ python cli.py perturb
 # ② Assign tasks and build task images
 python cli.py extend
 
-# ③ (optional) Export task datasets for agent runners
+# ③ Export task datasets for agent runners
 python cli.py export
 ```
 
-**Test your installation** by building a single perturbed image first:
+* **Test your installation first** — build a single perturbed image:
+
+  ```bash
+  python cli.py perturb --limit 1
+  ```
+
+  If it succeeds you get the image `swebench/sweb.eval.x86_64.<instance_id>:repomirage` plus `repomirage_output/metadata/<instance_id>.json`.
+* Pre-warm base images to avoid waiting during the run (optional):
+
+  ```bash
+  docker pull swebench/sweb.eval.x86_64.django_1776_django-10914:latest   # example instance
+  ```
+* `② extend` first groups instances into task families, then builds the task-specific images. `python cli.py extend summary` writes the task lists only (no Docker).
+* On tiny subsets some task families may end up empty — `②` and `③` simply skip them.
+* Every subcommand has `--help`; see [Common Options](#-common-options).
+
+That's the whole construction pipeline. Run your agent on the exported datasets, then validate its solutions as described next.
+
+## ✅ Validating Agent Runs
+
+`solutions.json` is the output of your agent runner and follows **mini-swe-agent's `preds.json` format**: a JSON object keyed by `instance_id`, where each entry carries the generated patch in `model_patch` (see the [mini-swe-agent output docs](https://mini-swe-agent.com/v2/usage/output_files/)). A list of `{instance_id, ...}` entries is also accepted, and the patch field may be named `patch`, `agent_patch`, `completion_patch`, or `model_patch`.
 
 ```bash
-python cli.py perturb --limit 1
+python cli.py validate proxy    solutions.json repomirage_output/tasks/proxy_chain_generation_summary.json
+python cli.py validate runtime  solutions.json repomirage_output/tasks/runtime_target_generation_summary.json
+python cli.py validate constant solutions.json repomirage_output/tasks/missing_constant_generation_summary.json
 ```
 
-If it succeeds you get the image `swebench/sweb.eval.x86_64.<instance_id>:repomirage` plus `repomirage_output/metadata/<instance_id>.json`.
+Each validator applies the agent's patch to the task image, checks that only the intended files were touched, and runs targeted runtime checks. Reports go to `repomirage_output/reports/`.
 
-> [!TIP]
-> * **Smoke test**: `python cli.py perturb --limit 3`
-> * **No-Docker dry run**: `python cli.py extend summary` only writes the task lists
-> * **Work on a subset**: `python cli.py perturb --instance-regex 'django__'`
-> * **Move all artifacts**: set the `REPOMIRAGE_OUT` environment variable
-> * Every subcommand has `--help`; see [Common Options](#-common-options)
+## 🧩 Task Families
 
-## 💽 Usage
+During `extend summary`, every perturbed instance is assigned to exactly one of four families, by priority:
 
-* **① perturb** — for each instance, starts its base image, applies the perturbation modules to the files touched by the gold patch, exports metadata, removes it from the image, rebuilds the git history, and commits the tag `repomirage`.
-* **② extend** — `summary` first groups instances into four task families from the metadata; then `proxy` / `runtime` / `constant` build the task-specific images.
-* **③ export** — writes one Hugging Face-style dataset per task family, each row carrying `repomirage_task_type`, `image_name`, and `docker_image` columns so your runner picks the right image.
+| Family | Selection | Agent task |
+|---|---|---|
+| **Multi-File Issue Resolution** | gold patch touches > 1 file | solve the original issue on the perturbed repo |
+| **Proxy Chain Completion** | top-K by proxy count | reconstruct erased middle-layer proxy files |
+| **Runtime Target Identification** | the remaining instances | find the real implementation among decoys |
+| **Missing Constant Recovery** | top-K by extracted constants | recover removed JSON keys while preserving values |
+
+The two top-K families each take **K instances**, ranked by how heavily the corresponding perturbation hit them. Set K with `--proxy-top-k` / `--constant-top-k` (or pick instances by hand with `--instance-ids-file`); the task lists are named after the K you chose.
+
+Perturbation modules behind all of this (all enabled by default, `--only` to select):
+
+* `proxy_import` — rewrites direct imports through multi-hop proxy files
+* `in_place_hiding` — hides the real implementation behind a wrapper package
+* `fake_files` — adds decoy files that look like the real implementation
+* `dynamic_dependency` — moves constants out of code into JSON resources
 
 ## 📂 What Gets Generated
 
@@ -108,8 +148,8 @@ repomirage_output/
 ├── built_instances.json              # instances whose perturbed images were built
 ├── metadata/<instance_id>.json       # what was perturbed per instance (bridge ① → ②)
 ├── tasks/
-│   ├── proxy_top_144.json            # → Proxy Chain Completion
-│   ├── constant_top_144.json         # → Missing Constant Recovery
+│   ├── proxy_top_<K>.json            # → Proxy Chain Completion
+│   ├── constant_top_<K>.json         # → Missing Constant Recovery
 │   ├── touched_files_gt1_<N>.json    # → Multi-File Issue Resolution
 │   ├── remainder.json                # → Runtime Target Identification
 │   └── *_generation_summary.json     # ground truth used for validation
@@ -126,32 +166,6 @@ All generated images keep the instance's image prefix and differ only by tag:
 | `repomirage_runtime_target` | ② | Runtime Target Identification |
 | `repomirage_missing_constant` | ② | Missing Constant Recovery |
 
-## 🧩 Task Families
-
-| Family | Selection | Agent task |
-|---|---|---|
-| **Multi-File Issue Resolution** | gold patch touches > 1 file | solve the original issue on the perturbed repo |
-| **Proxy Chain Completion** | top-K by proxy count | reconstruct erased middle-layer proxy files |
-| **Runtime Target Identification** | remaining instances | find the real implementation among decoys |
-| **Missing Constant Recovery** | top-K by extracted constants | recover removed JSON keys while preserving values |
-
-Perturbation modules behind all of this (all enabled by default, `--only` to select):
-
-* `proxy_import` — rewrites direct imports through multi-hop proxy files
-* `in_place_hiding` — hides the real implementation behind a wrapper package
-* `fake_files` — adds decoy files that look like the real implementation
-* `dynamic_dependency` — moves constants out of code into JSON resources
-
-## ✅ Validating Agent Runs
-
-```bash
-python cli.py validate proxy    solutions.json repomirage_output/tasks/proxy_chain_generation_summary.json
-python cli.py validate runtime  solutions.json repomirage_output/tasks/runtime_target_generation_summary.json
-python cli.py validate constant solutions.json repomirage_output/tasks/missing_constant_generation_summary.json
-```
-
-`solutions.json` is a list of `{instance_id, patch}` objects or a dict keyed by `instance_id`; the patch field may be named `patch`, `agent_patch`, `completion_patch`, or `model_patch`. Reports go to `repomirage_output/reports/`.
-
 ## 🔧 Common Options
 
 | Command | Option | Purpose |
@@ -163,6 +177,7 @@ python cli.py validate constant solutions.json repomirage_output/tasks/missing_c
 | `perturb` | `--force` | rebuild images even if the tag exists |
 | `extend` | `--steps summary proxy runtime constant` | choose which steps to run |
 | `extend` | `--proxy-top-k N` / `--constant-top-k N` | task family sizes (default 144) |
+| `extend` | `--instance-ids-file FILE` | assign tasks only for the listed instance IDs |
 | `extend` | `--overwrite` | rebuild task images even if the tag exists |
 | `export` | `--steps proxy_chain ...` | choose which datasets to export |
 | all | `--seed N` | deterministic construction (default 42) |
