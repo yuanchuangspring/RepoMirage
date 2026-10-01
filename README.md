@@ -29,11 +29,9 @@ RepoMirage is a benchmark-construction toolkit for measuring **repository-contex
 1. **RepoMirage-Perturb** — applies *semantics-preserving repository perturbations* to issue-resolution instances. The issue, the gold patch, and the tests stay untouched; the repository structure becomes harder to reason about.
 2. **RepoMirage-Extend** — turns the structural bottlenecks introduced by perturbation into four explicit, automatically checkable task families.
 
-Everything runs through one entry point, `cli.py`. Intermediate files land in `repomirage_output/` automatically — you never configure their paths.
-
 ## 🚀 Quick Start
 
-This tutorial goes from zero to a validated agent run in one straight line. It uses the official SWE-bench (Verified) as the running example; any SWE-bench-format dataset works the same way (Verified, Lite, the full set, or a dataset built with [SWE-smith](https://github.com/SWE-bench/SWE-smith)).
+The commands below use the official SWE-bench (Verified); any SWE-bench-format dataset works the same way (Verified, Lite, the full set, or one built with [SWE-smith](https://github.com/SWE-bench/SWE-smith)).
 
 ### 0. Prerequisites
 
@@ -106,8 +104,6 @@ python cli.py export
 * `② extend` first groups instances into task families, then builds the task-specific images. `python cli.py extend summary` writes the task lists only (no Docker).
 * On tiny subsets some task families may end up empty — `②` and `③` simply skip them.
 * Every subcommand has `--help`; see [Common Options](#-common-options).
-
-That's the whole construction pipeline. Run your agent on the exported datasets, then validate its solutions as described next.
 
 ## ✅ Validating Agent Runs
 
