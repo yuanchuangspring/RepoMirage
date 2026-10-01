@@ -180,8 +180,6 @@ RepoMirage_Perturb/        # ① repomirage.py, augment_script.py, wheels/
 RepoMirage_Extend/         # ② summary, generators, validators, extract_dataset/
 ```
 
-The individual scripts still run standalone with the same defaults, and legacy option names (e.g. `--host-metadata-dir`, `--yes-con-output`) remain accepted as aliases.
-
 ## ✍️ License & Acknowledgments
 
 MIT License — see [`LICENSE`](LICENSE). RepoMirage builds on SWE-bench (MIT) and mini-swe-agent (MIT); it does not redistribute modified repositories or Docker images. See [`ASSETS.md`](ASSETS.md) for the full license notes.
