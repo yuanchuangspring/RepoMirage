@@ -23,7 +23,7 @@
 
 ## 📰 News
 
-* **[Accepted]** RepoMirage has been accepted by **NeurIPS 2026 ED Track**! 🔥
+* **[Accepted]** RepoMirage has been accepted by **NeurIPS 2026 E&D Track**! 🔥
 
 ## 👋 Overview
 
