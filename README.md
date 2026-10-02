@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/repomirage-band.png" alt="RepoMirage" width="80%">
+  <img src="assets/repomirage-band.png" alt="RepoMirage" style="height: 10em">
 </p>
 
 <div align="center">
